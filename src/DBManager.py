@@ -1,4 +1,3 @@
-
 import psycopg2
 
 
@@ -21,7 +20,7 @@ class DBManager:
     def get_all_vacancies(self):
         """Получение всех вакансий"""
         self.cur.execute("""
-            SELECT com.name, vac.name, vac.salary_from
+            SELECT com.name, vac.name, vac.salary_from, vac.website
             FROM vacancies vac
             INNER JOIN companies com USING(company_id)
             WHERE vac.salary_from IS NOT NULL
@@ -54,12 +53,13 @@ class DBManager:
 
     def get_vacancies_with_keyword(self, keyword):
         """Получение вакансий по ключевому слову"""
-        self.cur.execute("""
+        self.cur.execute(
+            """
             SELECT com.name, vac.name, vac.salary_from
             FROM vacancies vac
             INNER JOIN companies com USING(company_id)
             WHERE LOWER(vac.name) LIKE LOWER(%s)""",
-            (f"%{keyword}%",)
+            (f"%{keyword}%",),
         )
         return self.cur.fetchall()
 

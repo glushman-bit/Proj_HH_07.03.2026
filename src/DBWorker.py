@@ -1,4 +1,5 @@
 import psycopg2
+
 from src.APIhh import APIhh
 
 
@@ -12,7 +13,6 @@ class DBWorker:
 
     def create_database(self, database_name: str = "headhunter") -> None:
         """Создание БД и таблиц companies и vacancies"""
-        print("Открытие соединения.")
         conn = psycopg2.connect(**self.params)
         conn.autocommit = True
         print("Создание ДБ.")
@@ -22,9 +22,7 @@ class DBWorker:
             cur.execute(f"CREATE DATABASE {database_name}")
 
         conn.close()
-        print("Закрытие соединения после создания БД.")
 
-        print("Открытие нового соединения для БД.")
         self.conn = psycopg2.connect(database=database_name, **self.params)
         self.cur = self.conn.cursor()
 
@@ -45,13 +43,12 @@ class DBWorker:
                 published_at DATE,
                 salary_from INT,
                 area VARCHAR(50) NOT NULL,
-                type VARCHAR(50) NOT NULL
+                type VARCHAR(50) NOT NULL,
+                website TEXT NOT NULL
             )
         """)
 
         self.conn.commit()
-        print("База данных и таблицы успешно созданы.")
-
 
     def save_to_db(self, employer_name) -> None:
         """Заполнение данными таблиц vacancies и employers"""
@@ -65,10 +62,7 @@ class DBWorker:
                 INSERT INTO companies (company_id, name, website, vacancies) 
                 VALUES (%s, %s, %s, %s) 
                 RETURNING company_id""",
-                (company["id"],
-                 company["name"],
-                 company["url"],
-                 company["open_vacancies"])
+                (company["id"], company["name"], company["url"], company["open_vacancies"]),
             )
             company_id = self.cur.fetchone()[0]
 
@@ -80,19 +74,22 @@ class DBWorker:
                 self.cur.execute(
                     """
                     INSERT INTO vacancies (company_id, 
-                            vacancy_id, name, published_at, salary_from, area, type)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            vacancy_id, name, published_at, salary_from, area, type, website)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (vacancy_id) DO NOTHING""",
-                    (company_id,
-                     vacancy["id"],
-                     vacancy["name"],
-                     published_at,
-                     salary_from,
-                     vacancy["area"]["name"],
-                     vacancy["type"]["name"])
+                    (
+                        company_id,
+                        vacancy["id"],
+                        vacancy["name"],
+                        published_at,
+                        salary_from,
+                        vacancy["area"]["name"],
+                        vacancy["type"]["name"],
+                        vacancy["apply_alternate_url"],
+                    ),
                 )
             self.conn.commit()
-            print("Данные успешно загружены в базу данных.")
+        print("Данные успешно сохранены.")
 
     def close(self):
         """Закрытие курсора и соединения"""
@@ -100,6 +97,3 @@ class DBWorker:
             self.cur.close()
         if self.conn:
             self.conn.close()
-        print("Соединение закрыто.")
-
-
