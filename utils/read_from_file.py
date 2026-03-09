@@ -1,10 +1,10 @@
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / 'data'
+DATA_DIR = BASE_DIR / "data"
 
-path_file = DATA_DIR / 'companies.txt'
+path_file = DATA_DIR / "companies.txt"
+
 
 def read_companies_from_file(path_file):
     """Чтение списка компаний из файла."""
