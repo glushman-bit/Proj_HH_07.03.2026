@@ -5,6 +5,7 @@ class DBManager:
     """Класс для работы с БД"""
 
     def __init__(self, dbname, params):
+        """Инициализация класса"""
         self.conn = psycopg2.connect(dbname=dbname, **params)
         self.cur = self.conn.cursor()
 

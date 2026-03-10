@@ -91,7 +91,7 @@ class DBWorker:
             self.conn.commit()
         print("Данные успешно сохранены.")
 
-    def close(self):
+    def close(self) -> None:
         """Закрытие курсора и соединения"""
         if self.cur:
             self.cur.close()
