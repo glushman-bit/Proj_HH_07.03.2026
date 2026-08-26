@@ -1,5 +1,8 @@
 import psycopg2
 
+from utils.read_from_file import read_test_data
+from utils.read_from_file import test_data_file
+
 from src.APIhh import APIhh
 
 
@@ -15,11 +18,21 @@ class DBWorker:
         """Создание БД и таблиц companies и vacancies"""
         conn = psycopg2.connect(**self.params)
         conn.autocommit = True
-        print("Создание ДБ.")
 
         with conn.cursor() as cur:
-            cur.execute(f"DROP DATABASE IF EXISTS {database_name}")
-            cur.execute(f"CREATE DATABASE {database_name}")
+            cur.execute(
+                "SELECT 1 FROM pg_database WHERE datname = %s",
+                (database_name,),
+            )
+
+            database_exists = cur.fetchone() is not None
+
+            if not database_exists:
+                print(f"База данных '{database_name}' не существует. Создание БД.")
+                cur.execute(f"CREATE DATABASE {database_name}")
+
+            else:
+                print(f"База данных '{database_name}' уже существует.")
 
         conn.close()
 
@@ -27,7 +40,7 @@ class DBWorker:
         self.cur = self.conn.cursor()
 
         self.cur.execute("""
-            CREATE TABLE companies (
+            CREATE TABLE IF NOT EXISTS companies (
                 company_id INT PRIMARY KEY,
                 name VARCHAR(50) NOT NULL,
                 website TEXT NOT NULL,
@@ -36,7 +49,7 @@ class DBWorker:
         """)
 
         self.cur.execute("""
-            CREATE TABLE vacancies (
+            CREATE TABLE IF NOT EXISTS vacancies (
                 company_id INT REFERENCES companies(company_id),
                 vacancy_id INT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
@@ -97,3 +110,60 @@ class DBWorker:
             self.cur.close()
         if self.conn:
             self.conn.close()
+
+
+    def save_test_data(self) -> None:
+        """Очистка таблиц и заполнение БД тестовыми данными."""
+
+        print("Загрузка тестовых данных в БД.")
+
+        test_data = read_test_data(test_data_file)
+
+        self.cur.execute("""
+            TRUNCATE TABLE vacancies, companies CASCADE
+        """)
+
+        for company in test_data["companies"]:
+            self.cur.execute("""
+                INSERT INTO companies (
+                    company_id, 
+                    name, 
+                    website, 
+                    vacancies
+                ) VALUES (%s, %s, %s, %s) 
+            """,(
+                company["company_id"],
+                company["name"],
+                company["website"],
+                company["vacancies"]
+            ),
+                             )
+
+        for vacancy in test_data["vacancies"]:
+            self.cur.execute("""
+                INSERT INTO vacancies (
+                    company_id, 
+                    vacancy_id, 
+                    name,
+                    published_at, 
+                    salary_from, 
+                    area,
+                    type,
+                    website
+                    )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,(
+                vacancy["company_id"],
+                vacancy["vacancy_id"],
+                vacancy["name"],
+                vacancy["published_at"],
+                vacancy["salary_from"],
+                vacancy["area"],
+                vacancy["type"],
+                vacancy["website"],
+            )
+                             )
+
+            self.conn.commit()
+
+        print("Тестовые данные успешно сохранены.")
