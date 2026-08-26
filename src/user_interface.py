@@ -28,7 +28,9 @@ def user_interface():
         print("""
 Выберите действие:
 1 - Создать базу данных
-2 - Далее
+2 - Загрузить тестовые данные
+3 - Загрузить данные с HH.ru
+4 - Далее
 0 - Выход
 """)
         choice = input("Введите номер пункта: ")
@@ -36,11 +38,23 @@ def user_interface():
         if choice == "1":
             db = DBWorker(Config.DB_PARAMS)
             db.create_database()
+            db.close()
+
+        elif choice == "2":
+            db = DBWorker(Config.DB_PARAMS)
+            db.create_database()
+            db.save_test_data()
+            db.close()
+
+        elif choice == "3":
+            db = DBWorker(Config.DB_PARAMS)
+            db.create_database()
+
             companies = read_companies_from_file(path_file)
             db.save_to_db(companies)
             db.close()
 
-        elif choice == "2":
+        elif choice == "4":
             db = DBManager("headhunter", Config.DB_PARAMS)
 
             while True:
