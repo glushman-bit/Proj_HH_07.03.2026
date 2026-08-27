@@ -25,14 +25,10 @@ class APIhh:
                 response = requests.get(f"{self.base_url}/employers", params=params, headers=self.headers)
 
             except requests.RequestException as e:
-                raise HHApiError(
-                    f"Не удалось подключиться к API hh.ru: {e}"
-                ) from e
+                raise HHApiError(f"Не удалось подключиться к API hh.ru: {e}") from e
 
             if response.status_code != 200:
-                raise HHApiError(
-                    f"API hh.ru вернул ошибку: {response.status_code}"
-                )
+                raise HHApiError(f"API hh.ru вернул ошибку: {response.status_code}")
 
             items = response.json().get("items")
 
@@ -54,13 +50,9 @@ class APIhh:
             response = requests.get(f"{self.base_url}/vacancies", params=params, headers=self.headers)
 
         except requests.RequestException as e:
-            raise HHApiError(
-                f"Не удалось подключиться к API hh.ru: {e}"
-            ) from e
+            raise HHApiError(f"Не удалось подключиться к API hh.ru: {e}") from e
 
         if response.status_code != 200:
-            raise HHApiError(
-                f"API hh.ru вернул ошибку: {response.status_code}"
-            )
+            raise HHApiError(f"API hh.ru вернул ошибку: {response.status_code}")
 
         return response.json().get("items", [])

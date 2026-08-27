@@ -2,11 +2,8 @@ from json import JSONDecodeError
 
 import psycopg2
 
-from utils.read_from_file import read_test_data
-from utils.read_from_file import test_data_file
-
 from src.APIhh import APIhh
-
+from utils.read_from_file import read_test_data, test_data_file
 
 REQUIRED_COMPANY_FIELDS = {
     "company_id",
@@ -58,7 +55,6 @@ class DBWorker:
 
             else:
                 message = f"База данных '{database_name}' уже существует."
-
 
         conn.close()
 
@@ -139,36 +135,28 @@ class DBWorker:
         if self.conn:
             self.conn.close()
 
-    def validate_test_data(self,test_data: dict) -> None:
+    def validate_test_data(self, test_data: dict) -> None:
         """Проверка структуры тестовых данных."""
 
         if "companies" not in test_data:
-            raise TestDataError(
-                "В тестовых данных отсутствует раздел 'companies'."
-            )
+            raise TestDataError("В тестовых данных отсутствует раздел 'companies'.")
 
         if "vacancies" not in test_data:
-            raise TestDataError(
-                "В тестовых данных отсутствует раздел 'vacancies'."
-            )
+            raise TestDataError("В тестовых данных отсутствует раздел 'vacancies'.")
 
         for index, company in enumerate(test_data["companies"], start=1):
             missing_fields = REQUIRED_COMPANY_FIELDS - company.keys()
 
             if missing_fields:
                 fields = ", ".join(sorted(missing_fields))
-                raise TestDataError(
-                    f"Компания №{index}: отсутствуют поля: {fields}."
-                )
+                raise TestDataError(f"Компания №{index}: отсутствуют поля: {fields}.")
 
         for index, vacancy in enumerate(test_data["vacancies"], start=1):
             missing_fields = REQUIRED_VACANCY_FIELDS - vacancy.keys()
 
             if missing_fields:
                 fields = ", ".join(sorted(missing_fields))
-                raise TestDataError(
-                    f"Вакансия №{index}: отсутствуют поля: {fields}."
-                )
+                raise TestDataError(f"Вакансия №{index}: отсутствуют поля: {fields}.")
 
     def save_test_data(self) -> None:
         """Очистка таблиц и заполнение БД тестовыми данными."""
@@ -180,14 +168,10 @@ class DBWorker:
             self.validate_test_data(test_data)
 
         except FileNotFoundError as e:
-            raise TestDataError(
-                f"Файл тестовых данных не найден: {test_data_file}"
-            ) from e
+            raise TestDataError(f"Файл тестовых данных не найден: {test_data_file}") from e
 
         except JSONDecodeError as e:
-            raise TestDataError(
-                f"Ошибка формата JSON: строка {e.lineno}, столбец {e.colno}"
-            ) from e
+            raise TestDataError(f"Ошибка формата JSON: строка {e.lineno}, столбец {e.colno}") from e
 
         try:
             self.cur.execute("""
@@ -195,23 +179,21 @@ class DBWorker:
             """)
 
             for company in test_data["companies"]:
-                self.cur.execute("""
+                self.cur.execute(
+                    """
                     INSERT INTO companies (
                         company_id, 
                         name, 
                         website, 
                         vacancies
                     ) VALUES (%s, %s, %s, %s) 
-                """,(
-                    company["company_id"],
-                    company["name"],
-                    company["website"],
-                    company["vacancies"]
-                ),
-                                 )
+                """,
+                    (company["company_id"], company["name"], company["website"], company["vacancies"]),
+                )
 
             for vacancy in test_data["vacancies"]:
-                self.cur.execute("""
+                self.cur.execute(
+                    """
                     INSERT INTO vacancies (
                         company_id, 
                         vacancy_id, 
@@ -223,17 +205,18 @@ class DBWorker:
                         website
                         )
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """,(
-                    vacancy["company_id"],
-                    vacancy["vacancy_id"],
-                    vacancy["name"],
-                    vacancy["published_at"],
-                    vacancy["salary_from"],
-                    vacancy["area"],
-                    vacancy["type"],
-                    vacancy["website"],
+                """,
+                    (
+                        vacancy["company_id"],
+                        vacancy["vacancy_id"],
+                        vacancy["name"],
+                        vacancy["published_at"],
+                        vacancy["salary_from"],
+                        vacancy["area"],
+                        vacancy["type"],
+                        vacancy["website"],
+                    ),
                 )
-                                 )
 
                 self.conn.commit()
 

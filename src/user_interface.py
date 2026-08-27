@@ -4,8 +4,7 @@ from src.APIhh import HHApiError
 from src.DBManager import DBManager
 from src.DBWorker import DBWorker, TestDataError
 from utils.config import Config
-from utils.read_from_file import path_file
-from utils.read_from_file import read_companies_from_file
+from utils.read_from_file import path_file, read_companies_from_file
 
 
 def format_salary(salary):
@@ -23,7 +22,7 @@ def user_interface(database_created=None):
     print("""
 Вас приветствует менеджер по работе с базой данных. 
 """)
-        
+
     while True:
         print("""
 Выберите действие:
