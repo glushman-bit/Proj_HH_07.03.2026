@@ -1,7 +1,8 @@
 from tabulate import tabulate
 
+from src.APIhh import HHApiError
 from src.DBManager import DBManager
-from src.DBWorker import DBWorker
+from src.DBWorker import DBWorker, TestDataError
 from utils.config import Config
 from utils.read_from_file import path_file
 from utils.read_from_file import read_companies_from_file
@@ -16,14 +17,18 @@ def format_salary(salary):
     return salary_text
 
 
-def user_interface():
+def user_interface(database_created=None):
     """Основное меню взаимодействия с пользователем"""
 
     print("""
 Вас приветствует менеджер по работе с базой данных. 
-Если база данных уже создана можете пропустить этот шаг, нажав "далее".
 """)
 
+    db = DBWorker(Config.DB_PARAMS)
+    message = db.create_database()
+
+    print(message)
+        
     while True:
         print("""
 Выберите действие:
@@ -42,17 +47,31 @@ def user_interface():
 
         elif choice == "2":
             db = DBWorker(Config.DB_PARAMS)
-            db.create_database()
-            db.save_test_data()
-            db.close()
+
+            try:
+                db.create_database()
+                db.save_test_data()
+
+            except TestDataError as e:
+                print(f"\nОшибка загрузки тестовых данных: {e}")
+
+            finally:
+                db.close()
 
         elif choice == "3":
             db = DBWorker(Config.DB_PARAMS)
-            db.create_database()
 
-            companies = read_companies_from_file(path_file)
-            db.save_to_db(companies)
-            db.close()
+            try:
+                db.create_database()
+
+                companies = read_companies_from_file(path_file)
+                db.save_to_db(companies)
+
+            except HHApiError as e:
+                print(f"\nОшибка загрузки данных с HH.ru: {e}")
+
+            finally:
+                db.close()
 
         elif choice == "4":
             db = DBManager("headhunter", Config.DB_PARAMS)
