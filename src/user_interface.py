@@ -23,11 +23,6 @@ def user_interface(database_created=None):
     print("""
 Вас приветствует менеджер по работе с базой данных. 
 """)
-
-    db = DBWorker(Config.DB_PARAMS)
-    message = db.create_database()
-
-    print(message)
         
     while True:
         print("""
@@ -43,6 +38,8 @@ def user_interface(database_created=None):
         if choice == "1":
             db = DBWorker(Config.DB_PARAMS)
             db.create_database()
+            message = db.create_database()
+            print(message)
             db.close()
 
         elif choice == "2":
