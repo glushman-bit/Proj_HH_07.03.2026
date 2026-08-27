@@ -1,6 +1,31 @@
+from json import JSONDecodeError
+
 import psycopg2
 
 from src.APIhh import APIhh
+from utils.read_from_file import read_test_data, test_data_file
+
+REQUIRED_COMPANY_FIELDS = {
+    "company_id",
+    "name",
+    "website",
+    "vacancies",
+}
+
+REQUIRED_VACANCY_FIELDS = {
+    "company_id",
+    "vacancy_id",
+    "name",
+    "published_at",
+    "salary_from",
+    "area",
+    "type",
+    "website",
+}
+
+
+class TestDataError(Exception):
+    """Ошибка загрузки тестовых данных."""
 
 
 class DBWorker:
@@ -11,15 +36,25 @@ class DBWorker:
         self.conn = None
         self.cur = None
 
-    def create_database(self, database_name: str = "headhunter") -> None:
+    def create_database(self, database_name: str = "headhunter") -> str:
         """Создание БД и таблиц companies и vacancies"""
         conn = psycopg2.connect(**self.params)
         conn.autocommit = True
-        print("Создание ДБ.")
 
         with conn.cursor() as cur:
-            cur.execute(f"DROP DATABASE IF EXISTS {database_name}")
-            cur.execute(f"CREATE DATABASE {database_name}")
+            cur.execute(
+                "SELECT 1 FROM pg_database WHERE datname = %s",
+                (database_name,),
+            )
+
+            database_exists = cur.fetchone() is not None
+
+            if not database_exists:
+                cur.execute(f"CREATE DATABASE {database_name}")
+                message = f"База данных '{database_name}' создана."
+
+            else:
+                message = f"База данных '{database_name}' уже существует."
 
         conn.close()
 
@@ -27,7 +62,7 @@ class DBWorker:
         self.cur = self.conn.cursor()
 
         self.cur.execute("""
-            CREATE TABLE companies (
+            CREATE TABLE IF NOT EXISTS companies (
                 company_id INT PRIMARY KEY,
                 name VARCHAR(50) NOT NULL,
                 website TEXT NOT NULL,
@@ -36,7 +71,7 @@ class DBWorker:
         """)
 
         self.cur.execute("""
-            CREATE TABLE vacancies (
+            CREATE TABLE IF NOT EXISTS vacancies (
                 company_id INT REFERENCES companies(company_id),
                 vacancy_id INT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
@@ -49,6 +84,8 @@ class DBWorker:
         """)
 
         self.conn.commit()
+
+        return message
 
     def save_to_db(self, employer_name) -> None:
         """Заполнение данными таблиц vacancies и employers"""
@@ -97,3 +134,94 @@ class DBWorker:
             self.cur.close()
         if self.conn:
             self.conn.close()
+
+    def validate_test_data(self, test_data: dict) -> None:
+        """Проверка структуры тестовых данных."""
+
+        if "companies" not in test_data:
+            raise TestDataError("В тестовых данных отсутствует раздел 'companies'.")
+
+        if "vacancies" not in test_data:
+            raise TestDataError("В тестовых данных отсутствует раздел 'vacancies'.")
+
+        for index, company in enumerate(test_data["companies"], start=1):
+            missing_fields = REQUIRED_COMPANY_FIELDS - company.keys()
+
+            if missing_fields:
+                fields = ", ".join(sorted(missing_fields))
+                raise TestDataError(f"Компания №{index}: отсутствуют поля: {fields}.")
+
+        for index, vacancy in enumerate(test_data["vacancies"], start=1):
+            missing_fields = REQUIRED_VACANCY_FIELDS - vacancy.keys()
+
+            if missing_fields:
+                fields = ", ".join(sorted(missing_fields))
+                raise TestDataError(f"Вакансия №{index}: отсутствуют поля: {fields}.")
+
+    def save_test_data(self) -> None:
+        """Очистка таблиц и заполнение БД тестовыми данными."""
+
+        print("Загрузка тестовых данных в БД.")
+
+        try:
+            test_data = read_test_data(test_data_file)
+            self.validate_test_data(test_data)
+
+        except FileNotFoundError as e:
+            raise TestDataError(f"Файл тестовых данных не найден: {test_data_file}") from e
+
+        except JSONDecodeError as e:
+            raise TestDataError(f"Ошибка формата JSON: строка {e.lineno}, столбец {e.colno}") from e
+
+        try:
+            self.cur.execute("""
+                TRUNCATE TABLE vacancies, companies CASCADE
+            """)
+
+            for company in test_data["companies"]:
+                self.cur.execute(
+                    """
+                    INSERT INTO companies (
+                        company_id, 
+                        name, 
+                        website, 
+                        vacancies
+                    ) VALUES (%s, %s, %s, %s) 
+                """,
+                    (company["company_id"], company["name"], company["website"], company["vacancies"]),
+                )
+
+            for vacancy in test_data["vacancies"]:
+                self.cur.execute(
+                    """
+                    INSERT INTO vacancies (
+                        company_id, 
+                        vacancy_id, 
+                        name,
+                        published_at, 
+                        salary_from, 
+                        area,
+                        type,
+                        website
+                        )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                    (
+                        vacancy["company_id"],
+                        vacancy["vacancy_id"],
+                        vacancy["name"],
+                        vacancy["published_at"],
+                        vacancy["salary_from"],
+                        vacancy["area"],
+                        vacancy["type"],
+                        vacancy["website"],
+                    ),
+                )
+
+                self.conn.commit()
+
+        except Exception:
+            self.conn.rollback()
+            raise
+
+        print("Тестовые данные успешно сохранены.")
